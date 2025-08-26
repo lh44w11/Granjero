@@ -3,12 +3,13 @@ import time
 import tkinter as tk
 from tkinter import messagebox
 import pyautogui
+import random
 
 running = threading.Event()
 worker_thread = None
 
-remaining_seconds = 0         
-quit_remaining_seconds = 0     
+remaining_seconds = 0
+quit_remaining_seconds = 0
 
 def format_mmss(s):
     if s <= 0:
@@ -37,7 +38,7 @@ def update_countdown():
                 autoquit_countdown_var.set(format_minutes_from_seconds(quit_remaining_seconds))
                 if quit_remaining_seconds == 0:
                     try:
-                        status_var.set("Tiempo cumplido. Enviando 'quit' y deteniendo…")
+                        status_var.set("Enviando 'quit' y deteniendo…")
                         pyautogui.typewrite("quit")
                         pyautogui.press('enter')
                     except Exception as e:
@@ -57,18 +58,6 @@ def update_countdown():
 
 def bot_loop(comando, intervalo_min):
     global remaining_seconds
-    # Hilo que envía el comando cada X minutos mientras running esté activo.
-    try:
-        intervalo_seg = int(intervalo_min) * 60
-    except ValueError:
-        status_var.set("Minimo 1 min.")
-        running.clear()
-        return
-
-    if intervalo_seg <= 0:
-        status_var.set("Minimo 1 min.")
-        running.clear()
-        return
 
     status_var.set("Iniciando en 5s… enfoca la ventana del juego!!!")
     initial_wait = remaining_seconds
@@ -82,7 +71,12 @@ def bot_loop(comando, intervalo_min):
             break
 
         try:
-            pyautogui.typewrite(comando)
+            if isinstance(comando, list):
+                cmd_to_send = random.choice(comando)
+            else:
+                cmd_to_send = comando
+
+            pyautogui.typewrite(cmd_to_send)
             pyautogui.press('enter')
 
             current = send_count_var.get()
@@ -92,7 +86,14 @@ def bot_loop(comando, intervalo_min):
                 current = 0
             send_count_var.set(str(current + 1))
 
-            status_var.set(f"Enviado: '{comando}'. Proximo en {intervalo_min}min.")
+            # Intervalo fijo o aleatorio
+            if random_interval_var.get() == 1:
+                intervalo_seg = random.randint(1, 15) * 60
+                status_var.set(f"Enviado: '{cmd_to_send}'. Proximo en {intervalo_seg//60} min (aleatorio).")
+            else:
+                intervalo_seg = int(intervalo_min) * 60
+                status_var.set(f"Enviado: '{cmd_to_send}'. Proximo en {intervalo_min} min.")
+
         except Exception as e:
             status_var.set("Error al enviar teclas.")
             messagebox.showerror("Error", f"Hubo un problema enviando teclas:\n{e}")
@@ -112,20 +113,33 @@ def start():
     if running.is_set():
         return
 
-    comando = cmd_entry.get().strip()
     intervalo = interval_entry.get().strip()
 
-    if not comando:
-        messagebox.showwarning("Falta comando", "Por favor ingresa el comando a enviar.")
-        return
-    if not intervalo:
-        messagebox.showwarning("Falta intervalo", "Por favor ingresa el intervalo en minutos.")
-        return
+    # Modo aleatorio (varios comandos)
+    if multi_cmd_var.get() == 1:
+        raw = multi_cmd_text.get("1.0", "end").strip()
+        cmds = [c.strip() for c in raw.replace(",", "\n").splitlines() if c.strip()]
+        if not cmds:
+            messagebox.showwarning("Faltan comandos", "Agrega al menos un comando en la lista.")
+            return
+        comando = cmds
+    else:
+        comando = cmd_entry.get().strip()
+        if not comando:
+            messagebox.showwarning("Falta comando", "Por favor ingresa el comando a enviar.")
+            return
 
+    # Validacion intervalo (solo si no es random)
+    if random_interval_var.get() == 0:
+        if not intervalo:
+            messagebox.showwarning("Falta intervalo", "Por favor ingresa el intervalo en minutos.")
+            return
+
+    # Auto-quit
     if auto_quit_var.get() == 1:
         q_text = quit_minutes_entry.get().strip()
         if not q_text:
-            messagebox.showwarning("Falta tiempo de quit", "Ingresa los minutos para auto-quit o desactivalo.")
+            messagebox.showwarning("Falta tiempo de quit", "Ingresa los minutos para el Auto-quit o desactivalo.")
             return
         try:
             q_min = int(q_text)
@@ -147,7 +161,7 @@ def start():
     start_btn.config(state="disabled")
     stop_btn.config(state="normal")
 
-    remaining_seconds = 5 
+    remaining_seconds = 5
     next_send_var.set(format_mmss(remaining_seconds))
     update_countdown()
 
@@ -171,18 +185,31 @@ def on_close():
 def on_toggle_autoquit():
     if auto_quit_var.get() == 1:
         quit_minutes_entry.config(state="normal")
-        # No arrancamos el conteo aca; se inicializa en start()
         autoquit_countdown_var.set("--")
     else:
         quit_minutes_entry.config(state="disabled")
         autoquit_countdown_var.set("--")
 
+def on_toggle_multi():
+    if multi_cmd_var.get() == 1:
+        multi_cmd_text.config(state="normal", bg="white", fg="black")
+        cmd_entry.config(state="disabled")
+    else:
+        multi_cmd_text.config(state="disabled", bg="#f0f0f0", fg="gray")
+        cmd_entry.config(state="normal")
+
+def on_toggle_random_interval():
+    if random_interval_var.get() == 1:
+        interval_entry.config(state="disabled", bg="#f0f0f0", fg="gray")
+    else:
+        interval_entry.config(state="normal", bg="white", fg="black")
+
 # ---------- UI ----------
 root = tk.Tk()
-root.title("Granjero vBeta")
+root.title("Granjero v1.0")
 root.resizable(False, False)
 
-title_lbl = tk.Label(root, text="Granjero vBeta by nachito ツ", font=("Segoe UI", 12, "bold"))
+title_lbl = tk.Label(root, text="Granjero v1.0 by nachito ツ", font=("Segoe UI", 12, "bold"))
 title_lbl.pack(padx=20, pady=(16, 8))
 
 frame_inputs = tk.Frame(root)
@@ -190,13 +217,33 @@ frame_inputs.pack(pady=8)
 
 tk.Label(frame_inputs, text="Comando:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
 cmd_entry = tk.Entry(frame_inputs, width=24)
-cmd_entry.insert(0, "heal")
+cmd_entry.insert(0, "")
 cmd_entry.grid(row=0, column=1, padx=5, pady=5)
 
 tk.Label(frame_inputs, text="Minutos:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
 interval_entry = tk.Entry(frame_inputs, width=10)
-interval_entry.insert(0, "13")
+interval_entry.insert(0, "")
 interval_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+
+# Random interval
+random_interval_var = tk.IntVar(value=0)
+random_interval_check = tk.Checkbutton(frame_inputs, 
+                                       text="Usar intervalo aleatorio (1-15 min)", 
+                                       variable=random_interval_var, 
+                                       command=on_toggle_random_interval)
+random_interval_check.grid(row=2, column=0, columnspan=2, pady=4)
+
+# Modo aleatorio (varios comandos)
+multi_frame = tk.Frame(root)
+multi_frame.pack(pady=(0, 8))
+multi_cmd_var = tk.IntVar(value=0)
+multi_cmd_check = tk.Checkbutton(multi_frame, text="Modo aleatorio (varios comandos)", variable=multi_cmd_var, command=on_toggle_multi)
+multi_cmd_check.grid(row=0, column=0, sticky="w", padx=5)
+
+multi_cmd_text = tk.Text(multi_frame, width=30, height=4, state="disabled",
+                         bg="#f0f0f0", fg="gray")
+multi_cmd_text.insert("1.0", "heal\nattack\nsay hola")
+multi_cmd_text.grid(row=1, column=0, padx=5, pady=4)
 
 # Auto-quit
 autoquit_frame = tk.Frame(root)
