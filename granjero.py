@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import messagebox
 import pyautogui
 import random
+import os
 
 running = threading.Event()
 worker_thread = None
@@ -45,6 +46,13 @@ def update_countdown():
                         messagebox.showerror("Error", f"No se pudo enviar 'quit':\n{e}")
                     finally:
                         stop()
+                        # Apagar PC si esta activado
+                        if shutdown_var.get() == 1:
+                            try:
+                                os.system("shutdown /s /t 0")  # Windows
+                                # os.system("shutdown -h now") # Linux/macOS
+                            except Exception as e:
+                                messagebox.showerror("Error", f"No se pudo apagar la PC:\n{e}")
                         return
             else:
                 autoquit_countdown_var.set("00 min")
@@ -186,9 +194,12 @@ def on_toggle_autoquit():
     if auto_quit_var.get() == 1:
         quit_minutes_entry.config(state="normal")
         autoquit_countdown_var.set("--")
+        shutdown_check.config(state="normal")  # habilitar checkbox
     else:
         quit_minutes_entry.config(state="disabled")
         autoquit_countdown_var.set("--")
+        shutdown_check.config(state="disabled")
+        shutdown_var.set(0)
 
 def on_toggle_multi():
     if multi_cmd_var.get() == 1:
@@ -206,10 +217,10 @@ def on_toggle_random_interval():
 
 # ---------- UI ----------
 root = tk.Tk()
-root.title("Granjero v1.0")
+root.title("Granjero v1.1")
 root.resizable(False, False)
 
-title_lbl = tk.Label(root, text="Granjero v1.0 by nachito ツ", font=("Segoe UI", 12, "bold"))
+title_lbl = tk.Label(root, text="Granjero v1.1 by nachito ツ", font=("Segoe UI", 12, "bold"))
 title_lbl.pack(padx=20, pady=(16, 8))
 
 frame_inputs = tk.Frame(root)
@@ -257,6 +268,11 @@ quit_minutes_entry = tk.Entry(autoquit_frame, width=6, state="disabled")
 quit_minutes_entry.insert(0, "60")
 quit_minutes_entry.grid(row=0, column=2, padx=5)
 
+# Checkbox Apagar PC
+shutdown_var = tk.IntVar(value=0)
+shutdown_check = tk.Checkbutton(autoquit_frame, text="Apagar PC al autoquit", variable=shutdown_var, state="disabled")
+shutdown_check.grid(row=0, column=3, padx=8)
+
 # Contador de envios
 counter_frame = tk.Frame(root)
 counter_frame.pack(pady=(0, 4))
@@ -273,7 +289,7 @@ next_send_var = tk.StringVar(value="--:--")
 next_send_lbl = tk.Label(cd_frame, textvariable=next_send_var)
 next_send_lbl.grid(row=0, column=1, padx=5)
 
-# Cuenta regresiva de Auto-quit (solo minutos)
+# Cuenta regresiva del Auto-quit (solo en minutos)
 cdq_frame = tk.Frame(root)
 cdq_frame.pack(pady=(0, 8))
 tk.Label(cdq_frame, text="Auto-quit en:").grid(row=0, column=0, padx=5)
