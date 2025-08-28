@@ -12,9 +12,9 @@ from datetime import datetime
 class BotApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Granjero v2.2")
+        self.root.title("Granjero v2.3")
         self.root.resizable(True, True)
-        self.root.geometry("500x650") 
+        self.root.geometry("500x650")
 
         # Estado
         self.running = threading.Event()
@@ -101,13 +101,13 @@ class BotApp:
                             if self.shutdown_var.get() == 1:
                                 self.log_event("Apagando la computadora…", "warn")
                                 self.shutdown_pc()
-                            return
+                                return
                 else:
                     self.autoquit_countdown_var.set("00 min")
             else:
                 self.autoquit_countdown_var.set("-- min")
 
-            # Reconnect automático
+            # connect automatico
             if self.reconnect_var.get() == 1:
                 if self.reconnect_remaining_seconds > 0:
                     self.reconnect_remaining_seconds -= 1
@@ -147,7 +147,7 @@ class BotApp:
                     intervalo_seg = random.randint(1, 15) * 60
                     self.set_status(
                         f"Enviado: '{cmd_to_send}'. Proximo en {intervalo_seg // 60} min (aleatorio).",
-                        "green"
+                        "green",
                     )
                 else:
                     try:
@@ -157,13 +157,12 @@ class BotApp:
                         self.set_status("Intervalo invalido.", "red")
                         self.stop()
                         return
+
                     self.set_status(
-                        f"Enviado: '{cmd_to_send}'. Proximo en {intervalo_min} min.",
-                        "green"
+                        f"Enviado: '{cmd_to_send}'. Proximo en {intervalo_min} min.", "green"
                     )
 
                 self.log_event(f"Enviado: '{cmd_to_send}'", "ok")
-
             except Exception as e:
                 self.set_status("Error al enviar teclas.", "red")
                 self.log_event(f"ERROR enviando teclas: {e}", "error")
@@ -215,6 +214,7 @@ class BotApp:
             except ValueError:
                 messagebox.showwarning("Tiempo invalido", "Ingresa un numero valido en minutos.")
                 return
+
             self.quit_remaining_seconds = int(q_text) * 60
             self.autoquit_countdown_var.set(
                 self.format_minutes_from_seconds(self.quit_remaining_seconds)
@@ -223,14 +223,16 @@ class BotApp:
             self.quit_remaining_seconds = 0
             self.autoquit_countdown_var.set("--")
 
-        # Reconnect automático
+        # connect automatico
         if self.reconnect_var.get() == 1:
             try:
                 mins = int(self.reconnect_minutes_entry.get().strip())
                 if mins <= 0:
                     raise ValueError
             except ValueError:
-                messagebox.showwarning("Tiempo invalido", "Ingresa un numero valido en minutos para reconnect.")
+                messagebox.showwarning(
+                    "Tiempo invalido", "Ingresa un numero valido en minutos para connect."
+                )
                 return
             self.reconnect_remaining_seconds = mins * 60
         else:
@@ -240,11 +242,9 @@ class BotApp:
         self.running.set()
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
-
         self.log_event("=" * 50, "special")
         self.log_event("Nuevo inicio del bot", "special")
         self.set_status("Preparando inicio…", "blue")
-
         self.remaining_seconds = 5
         self.next_send_var.set(self.format_mmss(self.remaining_seconds))
         self.update_countdown()
@@ -285,7 +285,7 @@ class BotApp:
     # -------------------- UI --------------------
     def build_ui(self):
         title_lbl = tk.Label(
-            self.root, text="Granjero v2.2 by nachito ツ", font=("Segoe UI", 12, "bold")
+            self.root, text="Granjero v2.3 by nachito ツ", font=("Segoe UI", 12, "bold")
         )
         title_lbl.pack(padx=20, pady=(16, 8))
 
@@ -310,6 +310,7 @@ class BotApp:
 
         multi_frame = tk.Frame(self.root)
         multi_frame.pack(pady=(0, 8))
+
         multi_cmd_check = tk.Checkbutton(
             multi_frame,
             text="Modo aleatorio (varios comandos)",
@@ -326,6 +327,7 @@ class BotApp:
 
         autoquit_frame = tk.Frame(self.root)
         autoquit_frame.pack(pady=(0, 8))
+
         autoquit_check = tk.Checkbutton(
             autoquit_frame, text="Auto-quit", variable=self.auto_quit_var, command=self.on_toggle_autoquit
         )
@@ -344,33 +346,43 @@ class BotApp:
         # connect automatico
         reconnect_frame = tk.Frame(self.root)
         reconnect_frame.pack(pady=(0, 8))
+
         reconnect_check = tk.Checkbutton(
-            reconnect_frame, text="Connect automatico", variable=self.reconnect_var
+            reconnect_frame,
+            text="Connect automatico",
+            variable=self.reconnect_var,
+            command=self.on_toggle_reconnect,   # 👈 NUEVO
         )
         reconnect_check.grid(row=0, column=0, padx=(5, 8))
 
         tk.Label(reconnect_frame, text="Minutos:").grid(row=0, column=1, padx=5)
-        self.reconnect_minutes_entry = tk.Entry(reconnect_frame, width=6)
+        self.reconnect_minutes_entry = tk.Entry(
+            reconnect_frame, width=6, state="disabled", bg="#f0f0f0", fg="gray"
+        )
         self.reconnect_minutes_entry.insert(0, "")
         self.reconnect_minutes_entry.grid(row=0, column=2, padx=5)
 
         counter_frame = tk.Frame(self.root)
         counter_frame.pack(pady=(0, 4))
+
         tk.Label(counter_frame, text="Envios realizados:").grid(row=0, column=0, padx=5)
         tk.Label(counter_frame, textvariable=self.send_count_var).grid(row=0, column=1, padx=5)
 
         cd_frame = tk.Frame(self.root)
         cd_frame.pack(pady=(0, 2))
+
         tk.Label(cd_frame, text="Proximo envio en:").grid(row=0, column=0, padx=5)
         tk.Label(cd_frame, textvariable=self.next_send_var).grid(row=0, column=1, padx=5)
 
         cdq_frame = tk.Frame(self.root)
         cdq_frame.pack(pady=(0, 8))
+
         tk.Label(cdq_frame, text="Auto-quit en:").grid(row=0, column=0, padx=5)
         tk.Label(cdq_frame, textvariable=self.autoquit_countdown_var).grid(row=0, column=1, padx=5)
 
         buttons = tk.Frame(self.root)
         buttons.pack(pady=8)
+
         self.start_btn = tk.Button(buttons, text="Comenzar", width=12, command=self.start)
         self.start_btn.grid(row=0, column=0, padx=6)
 
@@ -387,8 +399,10 @@ class BotApp:
         # Log dinamico
         log_frame = tk.Frame(self.root)
         log_frame.pack(padx=16, pady=(4, 12), fill="both", expand=True)
+
         self.log_box = tk.Text(log_frame, state="disabled", bg="#f9f9f9", font=("Segoe UI", 9))
         self.log_box.pack(side="left", fill="both", expand=True)
+
         scrollbar = tk.Scrollbar(log_frame, command=self.log_box.yview)
         scrollbar.pack(side="right", fill="y")
         self.log_box.config(yscrollcommand=scrollbar.set)
@@ -400,13 +414,14 @@ class BotApp:
         self.log_box.tag_config("error", foreground="red", font=("Segoe UI", 9, "bold"))
         self.log_box.tag_config("special", foreground="blue", font=("Segoe UI", 9, "bold"))
 
+    # -------------------- Toggles --------------------
     def on_toggle_autoquit(self):
         if self.auto_quit_var.get() == 1:
-            self.quit_minutes_entry.config(state="normal")
+            self.quit_minutes_entry.config(state="normal", bg="white", fg="black")
             self.autoquit_countdown_var.set("--")
             self.shutdown_check.config(state="normal")
         else:
-            self.quit_minutes_entry.config(state="disabled")
+            self.quit_minutes_entry.config(state="disabled", bg="#f0f0f0", fg="gray")
             self.autoquit_countdown_var.set("--")
             self.shutdown_check.config(state="disabled")
             self.shutdown_var.set(0)
@@ -424,6 +439,12 @@ class BotApp:
             self.interval_entry.config(state="disabled", bg="#f0f0f0", fg="gray")
         else:
             self.interval_entry.config(state="normal", bg="white", fg="black")
+
+    def on_toggle_reconnect(self):
+        if self.reconnect_var.get() == 1:
+            self.reconnect_minutes_entry.config(state="normal", bg="white", fg="black")
+        else:
+            self.reconnect_minutes_entry.config(state="disabled", bg="#f0f0f0", fg="gray")
 
 
 if __name__ == "__main__":
