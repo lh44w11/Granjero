@@ -13,14 +13,15 @@ class BotApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Granjero v2.0")
-        self.root.resizable(True, True)   # Ventana redimensionable
-        self.root.geometry("500x600")     # Tamaño inicial
+        self.root.resizable(True, True)
+        self.root.geometry("500x650") 
 
         # Estado
         self.running = threading.Event()
         self.worker_thread = None
         self.remaining_seconds = 0
         self.quit_remaining_seconds = 0
+        self.reconnect_remaining_seconds = 0
 
         # Variables Tkinter
         self.send_count_var = tk.StringVar(value="0")
@@ -31,6 +32,7 @@ class BotApp:
         self.random_interval_var = tk.IntVar(value=0)
         self.multi_cmd_var = tk.IntVar(value=0)
         self.shutdown_var = tk.IntVar(value=0)
+        self.reconnect_var = tk.IntVar(value=0)
 
         self.build_ui()
         self.set_status("Listo.", "black")
@@ -70,12 +72,14 @@ class BotApp:
     # -------------------- Logica principal --------------------
     def update_countdown(self):
         if self.running.is_set():
+            # Countdown normal
             if self.remaining_seconds > 0:
                 self.remaining_seconds -= 1
                 self.next_send_var.set(self.format_mmss(self.remaining_seconds))
             else:
                 self.next_send_var.set("--:--")
 
+            # Autoquit
             if self.auto_quit_var.get() == 1:
                 if self.quit_remaining_seconds > 0:
                     self.quit_remaining_seconds -= 1
@@ -95,14 +99,26 @@ class BotApp:
                         finally:
                             self.stop()
                             if self.shutdown_var.get() == 1:
-                                if messagebox.askyesno("Confirmar", "¿Seguro que queres apagar la PC?"):
-                                    self.log_event("Apagando la computadora…", "warn")
-                                    self.shutdown_pc()
+                                self.log_event("Apagando la computadora…", "warn")
+                                self.shutdown_pc()
                             return
                 else:
                     self.autoquit_countdown_var.set("00 min")
             else:
                 self.autoquit_countdown_var.set("-- min")
+
+            # Reconnect automático
+            if self.reconnect_var.get() == 1:
+                if self.reconnect_remaining_seconds > 0:
+                    self.reconnect_remaining_seconds -= 1
+                    if self.reconnect_remaining_seconds == 0:
+                        try:
+                            self.set_status("Ejecutando connect…", "orange")
+                            pyautogui.typewrite("connect cfx.re/join/pzkppa")
+                            pyautogui.press("enter")
+                            self.log_event("Se envio 'connect cfx.re/join/pzkppa'.", "ok")
+                        except Exception as e:
+                            self.log_event(f"ERROR en connect: {e}", "error")
 
             self.root.after(1000, self.update_countdown)
         else:
@@ -207,6 +223,19 @@ class BotApp:
             self.quit_remaining_seconds = 0
             self.autoquit_countdown_var.set("--")
 
+        # Reconnect automático
+        if self.reconnect_var.get() == 1:
+            try:
+                mins = int(self.reconnect_minutes_entry.get().strip())
+                if mins <= 0:
+                    raise ValueError
+            except ValueError:
+                messagebox.showwarning("Tiempo invalido", "Ingresa un numero valido en minutos para reconnect.")
+                return
+            self.reconnect_remaining_seconds = mins * 60
+        else:
+            self.reconnect_remaining_seconds = 0
+
         self.send_count_var.set("0")
         self.running.set()
         self.start_btn.config(state="disabled")
@@ -231,6 +260,7 @@ class BotApp:
         self.stop_btn.config(state="disabled")
         self.remaining_seconds = 0
         self.quit_remaining_seconds = 0
+        self.reconnect_remaining_seconds = 0
         self.next_send_var.set("--:--")
         self.autoquit_countdown_var.set("--")
         self.set_status("Detenido.", "orange")
@@ -310,6 +340,19 @@ class BotApp:
             autoquit_frame, text="Apagar PC al Auto-quit", variable=self.shutdown_var, state="disabled"
         )
         self.shutdown_check.grid(row=0, column=3, padx=8)
+
+        # connect automatico
+        reconnect_frame = tk.Frame(self.root)
+        reconnect_frame.pack(pady=(0, 8))
+        reconnect_check = tk.Checkbutton(
+            reconnect_frame, text="Connect automatico", variable=self.reconnect_var
+        )
+        reconnect_check.grid(row=0, column=0, padx=(5, 8))
+
+        tk.Label(reconnect_frame, text="Minutos:").grid(row=0, column=1, padx=5)
+        self.reconnect_minutes_entry = tk.Entry(reconnect_frame, width=6)
+        self.reconnect_minutes_entry.insert(0, "")
+        self.reconnect_minutes_entry.grid(row=0, column=2, padx=5)
 
         counter_frame = tk.Frame(self.root)
         counter_frame.pack(pady=(0, 4))
