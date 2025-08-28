@@ -12,7 +12,7 @@ from datetime import datetime
 class BotApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Granjero v2.0")
+        self.root.title("Granjero v2.2")
         self.root.resizable(True, True)
         self.root.geometry("500x650") 
 
@@ -285,7 +285,7 @@ class BotApp:
     # -------------------- UI --------------------
     def build_ui(self):
         title_lbl = tk.Label(
-            self.root, text="Granjero v2.0 by nachito ツ", font=("Segoe UI", 12, "bold")
+            self.root, text="Granjero v2.2 by nachito ツ", font=("Segoe UI", 12, "bold")
         )
         title_lbl.pack(padx=20, pady=(16, 8))
 
